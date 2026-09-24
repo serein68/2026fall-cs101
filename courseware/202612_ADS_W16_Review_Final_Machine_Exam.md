@@ -158,7 +158,156 @@ T6  ★★★★★   综合建模，15% AC             —— 区分优秀
 
 ---
 
-## T1. 成绩单核对
+> **T-028 更正（2026-09-22）**：下方原 T1–T6 是未标来源的草稿题，已废弃。2025-11-06 实际比赛“20251106 cs101 Mock Exam立冬前一天”的真实题目如下；完整题面、约束和提交入口以 OpenJudge 页面为准。
+
+| 题号 | 题名 | 主要考点 | 题面 |
+| --- | --- | --- | --- |
+| E29982 | 一种等价类划分问题 | 哈希分组、数字各位和 | [29982](http://cs101.openjudge.cn/practice/29982/) |
+| E30086 | dance | 排序、贪心配对 | [30086](http://cs101.openjudge.cn/practice/30086/) |
+| M25570 | 洋葱 | 矩阵分层 / 模拟 | [25570](http://cs101.openjudge.cn/practice/25570/) |
+| M28906 | 数的划分 | DFS / 动态规划 | [28906](http://cs101.openjudge.cn/practice/28906/) |
+| M29896 | 购物 | 贪心、覆盖连续金额 | [29896](http://cs101.openjudge.cn/practice/29896/) |
+| T25353 | 排队 | 可交换关系、贪心 / 数据结构 | [25353](http://cs101.openjudge.cn/practice/25353/) |
+
+以下旧 T1–T6 内容仅保留作历史审计，不再作为真题讲解。
+
+## T1. E29982 一种等价类划分问题
+
+**题意复述**：在 `(m,n)` 内筛出各位数字和是 `k` 的倍数的整数，再按“各位数字和”分组；每组升序、逗号分隔，组按数字和递增输出。输入格式为 `m,n,k`。
+
+```python
+m, n, k = map(int, input().split(','))
+groups = {}
+for x in range(m + 1, n):
+    s = sum(map(int, str(x)))
+    if s % k == 0:
+        groups.setdefault(s, []).append(str(x))
+for s in sorted(groups):
+    print(','.join(groups[s]))
+```
+
+题目：[E29982 一种等价类划分问题](http://cs101.openjudge.cn/practice/29982/)。
+
+## T2. E30086 dance
+
+**题意复述**：有 `2N` 名学生，要求两两配对且每对身高差不超过 `D`。将身高排序后只能相邻配对；所有相邻差均不超过 `D` 时输出 `Yes`，否则 `No`。
+
+```python
+n, d = map(int, input().split())
+a = sorted(map(int, input().split()))
+print('Yes' if all(a[i + 1] - a[i] <= d for i in range(0, 2 * n, 2)) else 'No')
+```
+
+题目：[E30086 dance](http://cs101.openjudge.cn/practice/30086/)。
+
+## T3. M25570 洋葱
+
+**题意复述**：给定 `n*n` 非负矩阵，逐层剥去外圈，求所有层元素和的最大值。每层是方框边界；奇数阶中心元素单独成层。
+
+```python
+n = int(input())
+a = [list(map(int, input().split())) for _ in range(n)]
+best = 0
+for layer in range((n + 1) // 2):
+    lo, hi = layer, n - 1 - layer
+    total = sum(a[lo][j] for j in range(lo, hi + 1))
+    if hi > lo:
+        total += sum(a[hi][j] for j in range(lo, hi + 1))
+        total += sum(a[i][lo] + a[i][hi] for i in range(lo + 1, hi))
+    best = max(best, total)
+print(best)
+```
+
+题目：[M25570 洋葱](http://cs101.openjudge.cn/practice/25570/)。
+
+## T4. M28906 数的划分
+
+**题意复述**：把 `n` 分成 `k` 个非空正整数，顺序不计，求方案数（`n <= 200, 2 <= k <= 6`）。令下一份不小于上一份即可避免排列重复。
+
+```python
+from functools import lru_cache
+n, k = map(int, input().split())
+@lru_cache(None)
+def dfs(rem, left, low):
+    if left == 1:
+        return int(rem >= low)
+    return sum(dfs(rem - x, left - 1, x)
+               for x in range(low, rem // left + 1))
+print(dfs(n, k, 1))
+```
+
+`low` 保证后续各份不小于当前份，因此同一划分不会因排列重复计数。
+
+题目：[M28906 数的划分](http://cs101.openjudge.cn/practice/28906/)。
+
+## T5. M29896 购物
+
+**题意复述**：有无限枚不同面值硬币，求最少带多少枚硬币，使 `1..X` 每个金额都能组合出来；不能覆盖时输出 `-1`。维护当前连续可覆盖区间 `[1, reach]`，每次选不超过 `reach+1` 的最大面值。
+
+```python
+X, n = map(int, input().split())
+coins = sorted(map(int, input().split()))
+reach = count = 0
+while reach < X:
+    usable = [c for c in coins if c <= reach + 1]
+    if not usable:
+        print(-1); break
+    reach += max(usable); count += 1
+else:
+    print(count)
+```
+
+题目：[M29896 购物](http://cs101.openjudge.cn/practice/29896/)。
+
+## T6. T25353 排队
+
+**题意复述**：相邻两人身高差不超过 `D` 才能交换，任意次交换后求字典序最小的身高序列。两人身高差大于 `D` 时相对顺序永远不能改变，可把它们看成前驱约束；每个元素的层数是此前所有“不可交换的大山”的最大层数加一，同层元素可任意交换，故逐层排序输出。
+
+**参考解答**：离散化身高后，用两棵树状数组维护“比当前值小 `D` 以上”和“比当前值大 `D` 以上”的最大层数，单点更新、前缀最大查询均为 `O(log N)`。
+
+```python
+import bisect
+import sys
+
+data = list(map(int, sys.stdin.buffer.read().split()))
+n, d = data[:2]
+h = data[2:2 + n]
+vals = sorted(set(h))
+m = len(vals)
+lo_bit = [0] * (m + 1)
+hi_bit = [0] * (m + 1)
+
+def update(bit, i, value):
+    while i <= m:
+        bit[i] = max(bit[i], value)
+        i += i & -i
+
+def query(bit, i):
+    ans = 0
+    while i:
+        ans = max(ans, bit[i])
+        i -= i & -i
+    return ans
+
+layers = {}
+for height in h:
+    small = query(lo_bit, bisect.bisect_left(vals, height - d))
+    large = query(hi_bit, m - bisect.bisect_right(vals, height + d))
+    level = max(small, large) + 1
+    layers.setdefault(level, []).append(height)
+    pos = bisect.bisect_left(vals, height) + 1
+    update(lo_bit, pos, level)
+    update(hi_bit, m - pos + 1, level)
+for level in sorted(layers):
+    for height in sorted(layers[level]):
+        print(height)
+```
+
+样例 `7 7 3 6 2, D=3` 的结果为 `6 7 7 2 3`；不能直接排序成 `2 3 6 7 7`，因为 `2` 无法越过身高差超过 `D` 的人。
+
+题目：[T25353 排队](http://cs101.openjudge.cn/practice/25353/)。
+
+<!-- 历史草稿原文保留在本文件此处，仅供审计，不属于当前样卷正文。
 
 **考点**：字典计数、多关键字排序、格式化输出（W2、W4）　　**难度**：★☆☆☆☆
 
@@ -238,7 +387,7 @@ solve()
 
 ---
 
-## T2. 括号嵌套深度
+### 历史草稿 T2：括号嵌套深度
 
 **考点**：栈、边界判断（W7）　　**难度**：★★☆☆☆
 
@@ -325,7 +474,7 @@ solve()
 
 ---
 
-## T3. 会议室数量
+### 历史草稿 T3：会议室数量
 
 **考点**：区间分组、差分 / 排序（W10）　　**难度**：★★★☆☆
 
@@ -427,7 +576,7 @@ print(min_rooms([(1, 4), (2, 5), (6, 8), (3, 7)])) # 3
 
 ---
 
-## T4. 穿墙迷宫
+### 历史草稿 T4：穿墙迷宫
 
 **考点**：带状态的 BFS（W12）　　**难度**：★★★☆☆
 
@@ -527,7 +676,7 @@ solve()
 
 ---
 
-## T5. 作业时间分配
+### 历史草稿 T5：作业时间分配
 
 **考点**：0-1 背包 + 次要目标（W11）　　**难度**：★★★★☆
 
@@ -620,7 +769,7 @@ solve()
 
 ---
 
-## T6. 电网巡检
+### 历史草稿 T6：电网巡检
 
 **考点**：最小瓶颈路 = 排序 + 并查集（W6、W9）；亦可二分 + BFS（W12）　　**难度**：★★★★★
 
@@ -781,6 +930,27 @@ python3 tools/redteam_exam.py
 ```
 
 ---
+
+-->
+
+## 5.7 当前样卷红队反例
+
+[`tools/redteam_exam.py`](../tools/redteam_exam.py) 对当前六道真题的正确模型与代表性错误实现实际运行。以下不是评分点，也不替代平台数据；它们只保证常见错法会在固定合法输入上暴露。
+
+| 题 | 固定反例 | 能卡住的错误实现 |
+| --- | --- | --- |
+| T1 | `(11,35,3)` | 把所有“各位和为 3 的倍数”的数混成一组 |
+| T2 | 身高 `3,100,4,101`，`D=2` | 不排序、只配原相邻位置 |
+| T3 | 3×3 矩阵中心为 100、其余为 1 | 外层只累加上下两行，漏两侧 |
+| T4 | `n=7,k=3` | 按有序拆分计数（15 而非 4） |
+| T5 | `X=20`，面值 `1,2,5,10` | 每次拿最小可用面值（20 而非 5 枚） |
+| T6 | `7,7,3,6,2`，`D=3` | 直接全局排序，越过不可交换屏障 |
+
+运行：
+
+```bash
+python3 tools/redteam_exam.py
+```
 
 # 6 备选题库（按知识点分类）
 

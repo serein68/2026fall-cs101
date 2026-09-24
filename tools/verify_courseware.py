@@ -12,7 +12,7 @@
     3  课程安排    讲义与课件声明的「主题与学习重点」与课程指南表格逐字一致
     4  链接        所有本地 .md / .pptx / .py 相对链接可达
     5  语法        讲义里所有 ```python 代码块 + courseware/*.py 能被 ast.parse
-    6  可重生成    课件能从 content/ 重新生成；页数与 README 一致，
+    6  可重生成    课件能从 content/（或 build_all.JS_DECKS 登记的 pptx_builder 脚本）重新生成；页数与 README 一致，
                    且重建产物与已提交的 .pptx **逐段文本相同**（防止源改了没重建）
     7  题号题名    讲义引用的 OJ 题号↔题名与仓库内既有语料一致（离线）
     8  渲染        逐页检查文字未越出版心 + 中文字体已嵌入（--render）
@@ -69,6 +69,24 @@ VERIFIED_TITLES = {
     '12559': ('最大最小整数',
               'T-008 联网核实（Codex，b2e6e3e）：平台标题无 "v0.3" 后缀，'
               '2025 语料的写法已过时'),
+    '29895': ('分解因数', 'T-028 联网核实（2026-09-22，20251009mockexam）'),
+    '29940': ('机器猫斗恶龙', 'T-028 联网核实（2026-09-22，20251009mockexam）'),
+    '29917': ('牛顿迭代法', 'T-028 联网核实（2026-09-22，20251009mockexam）'),
+    '29918': ('求亲和数', 'T-028 联网核实（2026-09-22，20251009mockexam）'),
+    '29949': ('贪婪的哥布林', 'T-028 联网核实（2026-09-22，20251009mockexam）'),
+    '29947': ('校门外的树又来了', 'T-028 联网核实（2026-09-22，20251009mockexam）'),
+    '29945': ('神秘数字的宇宙旅行', 'T-028 联网核实（2026-09-22，20251204mockexam）'),
+    '29946': ('删数问题', 'T-028 联网核实（2026-09-22，20251204mockexam）'),
+    '30091': ('缺德的图书馆管理员', 'T-028 联网核实（2026-09-22，20251204mockexam）'),
+    '27371': ('Playfair密码', 'T-028 联网核实（2026-09-22，20251204mockexam）'),
+    '30201': ('旅行售货商问题', 'T-028 联网核实（2026-09-22，20251204mockexam）'),
+    '30204': ('小P的LLM推理加速', 'T-028 联网核实（2026-09-22，20251204mockexam）'),
+    '29982': ('一种等价类划分问题', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
+    '30086': ('dance', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
+    '25570': ('洋葱', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
+    '28906': ('数的划分', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
+    '29896': ('购物', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
+    '25353': ('排队', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
 }
 
 failures = []
@@ -339,15 +357,25 @@ def check_regenerate(files):
     else:
         fail('6 可重生成', 'courseware/README.md 不存在')
 
+    import build_all
     with tempfile.TemporaryDirectory() as tmp:
         for wk in WEEKS:
             py = files.get(wk, (None, None, None))[2]
             if py is None:
                 continue
-            mod = importlib.import_module(f'w{wk}')
-            importlib.reload(mod)
             out = Path(tmp) / f'w{wk}.pptx'
-            pages = deck.build(mod.META, mod.SLIDES, str(out))
+            if wk in build_all.JS_DECKS:
+                # 这几周由 pptx_builder（node + pptxgenjs）生成，源是 deck 脚本
+                try:
+                    pages = build_all.build_js(wk, out)
+                except (OSError, subprocess.CalledProcessError) as e:
+                    fail('6 可重生成', f'第 {wk} 周 node 生成失败：{e}\n'
+                         f'        修法：cd courseware/pptx_builder && npm install')
+                    continue
+            else:
+                mod = importlib.import_module(f'w{wk}')
+                importlib.reload(mod)
+                pages = deck.build(mod.META, mod.SLIDES, str(out))
             if wk not in declared:
                 fail('6 可重生成', f'README 文件清单里没有第 {wk} 周')
                 continue
@@ -372,8 +400,9 @@ def check_regenerate(files):
                              for i, (o, n) in enumerate(zip(old_texts, fresh_texts))
                              if o != n),
                             f'段数不同：仓库 {len(old_texts)} vs 重建 {len(fresh_texts)}')
+                src = build_all.JS_DECKS.get(wk, f'content/w{wk}.py')
                 fail('6 可重生成',
-                     f'第 {wk} 周课件与 content/w{wk}.py 不一致 —— '
+                     f'第 {wk} 周课件与 {src} 不一致 —— '
                      f'源改过但 .pptx 没重建？\n        {diff}\n'
                      f'        修法：cd courseware && python3 build_all.py {wk}')
 
@@ -864,8 +893,6 @@ ALIGN_TOKENS = ('--', '——', '->', '→', '=>', '⇒', '<-', '←', '|', '=',
 KNOWN_RAGGED = {
     ('w01', '四个概念层层包含'),
     ('w02', '虚拟机的层次'),
-    ('w03', '图灵机模型（1936）'),
-    ('w03', '五大部件'),
     ('w08', '进程的虚拟地址空间'),
     ('w13', '虚拟地址空间'),
     ('w15', 'XOR：为什么需要"深度"'),

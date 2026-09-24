@@ -1,5 +1,5 @@
 ## 2026fall 计概（Algo DS）每日选作
-*Updated 2026-09-13 07:55 GMT+8 Compiled by Hongfei Yan (2026 Summer)*  
+*Updated 2026-09-20 00:52 GMT+8 Compiled by Hongfei Yan (2026 Summer)*  
 https://github.com/GMyhf/2026fall-cs101/blob/main/ADS_problem_list_at_2026fall.md
 
 题解，https://fuynaloft.github.io/sol101/ ✅
@@ -17,11 +17,17 @@ https://github.com/GMyhf/2026fall-cs101/blob/main/ADS_problem_list_at_2026fall.m
 | 日期       | 问题编号与名称                 | 标签                                 | 难度 | 链接                                             |
 | ---------- | ------------------------------ | ------------------------------------ | ---- | ------------------------------------------------ |
 |  |       |       | - |          |
-| 09 | 231A. Team          | bruteforce, greedy     | 800  | http://codeforces.com/problemset/problem/231/A   |
-| 09 | 112A. Petya and Strings        | implementation, strings              | 800  | http://codeforces.com/problemset/problem/112/A   |
-| 09 | 158A. Next Round    | *special problem, implementation  | 800 | http://codeforces.com/problemset/problem/158/A          |
 | 09 | 31180:学生数据统计分析  | implementation     | Medium | http://cs101.openjudge.cn/practice/31180/          |
-| 09 | 31185:一道题搞懂内置排序函数      | implementation   | Medium | http://cs101.openjudge.cn/practice/31185/          |
+| 0924 | 3827.统计单比特整数| bit manipulation  | Easy | https://leetcode.cn/problems/count-monobit-integers/          |
+| 0923 | 3498. 字符串的反转度  | implementation     | Easy | https://leetcode.cn/problems/reverse-degree-of-a-string/          |
+| 0922 | 1401. 圆和矩形是否有重叠      | math       | Medium | https://leetcode.cn/problems/circle-and-rectangle-overlapping/         |
+| 0921 | 303. 区域和检索 - 数组不可变      | prefix sum      | Easy | https://leetcode.cn/problems/range-sum-query-immutable/          |
+| 0920 | 31185:一道题搞懂内置排序函数      | implementation   | Medium | http://cs101.openjudge.cn/practice/31185/          |
+| 0919 | 283. 移动零        | two pointers      | Easy | https://leetcode.cn/problems/move-zeroes/          |
+| 0918 | 112A. Petya and Strings        | implementation, strings              | 800  | http://codeforces.com/problemset/problem/112/A   |
+| 0917 | 231A. Team          | bruteforce, greedy     | 800  | http://codeforces.com/problemset/problem/231/A   |
+| 0916 | 1356.根据数字二进制下 1 的数目排序      | bit manipulation       | Easy | https://leetcode.cn/problems/sort-integers-by-the-number-of-1-bits/          |
+| 0915 | 158A. Next Round    | *special problem, implementation  | 800 | http://codeforces.com/problemset/problem/158/A          |
 | 0914 | 31184:一道题搞懂输出      | implementation   | Easy | http://cs101.openjudge.cn/practice/31184/          |
 | 0913 | 31183:一道题搞懂输入     | implementation   | Easy | http://cs101.openjudge.cn/practice/31183/          |
 | 0912 | 200B. Drinks    | implementation, math | 800 | https://codeforces.com/problemset/problem/200/B                                        |
