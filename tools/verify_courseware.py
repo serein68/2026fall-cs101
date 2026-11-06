@@ -87,6 +87,12 @@ VERIFIED_TITLES = {
     '28906': ('数的划分', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
     '29896': ('购物', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
     '25353': ('排队', 'T-028 联网核实（2026-09-22，20251106mockexam）'),
+    '31295': ('宿舍的空调', '联网核实（2026-10-31，2026 寒露月考 / W05 样卷）'),
+    '31294': ('大肥鱼卖白饭', '联网核实（2026-10-31，2026 寒露月考 / W05 样卷）'),
+    '31293': ('双十一凑单大作战', '联网核实（2026-10-31，2026 寒露月考 / W05 样卷）'),
+    '31297': ('恒星共振裂变', '联网核实（2026-10-31，2026 寒露月考 / W05 样卷）'),
+    '31296': ('“淹园”救援', '联网核实（2026-10-31，2026 寒露月考 / W05 样卷）'),
+    '31298': ('警察招募又来了', '联网核实（2026-10-31，2026 寒露月考 / W05 样卷）'),
 }
 
 failures = []
@@ -99,6 +105,18 @@ def fail(check, msg):
 
 def note(msg):
     notes.append(msg)
+
+
+def js_deck_sources():
+    """第 03–16 周的课件源是 pptx_builder 下的 JS 脚本：{周: 路径}。
+
+    `content/wNN.py` 在这些周只剩 META、`SLIDES = []`，凡是"课件侧"的源检查
+    都必须改看这里，否则会对着空列表静默通过。
+    """
+    if str(COURSEWARE) not in sys.path:
+        sys.path.insert(0, str(COURSEWARE))
+    import build_all
+    return {wk: COURSEWARE / rel for wk, rel in build_all.JS_DECKS.items()}
 
 
 def read(path):
@@ -601,6 +619,26 @@ def intrudes_into_footer(y_min_pt, y_max_pt):
             and y_max_pt > BODY_BOTTOM_PT + BODY_TOL_PT)
 
 
+# 第 03–16 周的 JS 课件（pptx_builder/lib.js 的 content()）页脚**只有右下角一个页码**，
+# 没有 deck.py 那条整宽页脚带。拿 deck.py 的版心底线去卡它会大量误报：
+# 正文离底边近一点、但离页码还远（W05 样卷各题第二页、W06 第 47 页）也被判溢出。
+# 所以 JS 课件改为从 PDF 里**定位页码本身**，只在正文与页码真正重叠时报错。
+PAGENO_PAD_PT = 1.5                           # 页码四周留的余量（PDF 点）
+
+
+def is_page_number_word(text, x_min, y_min, pw, ph):
+    """右下角的纯数字就是 lib.js 画的页码（x≈9.3in/10in，y≈5.28in/5.625in）。"""
+    return text.isdigit() and x_min > 0.85 * pw and y_min > 0.9 * ph
+
+
+def overlaps_page_number(word, num, pad=PAGENO_PAD_PT):
+    """两个 (xMin, yMin, xMax, yMax) 框是否相交（页码框四周外扩 pad）。"""
+    x, y, x2, y2 = word
+    nx, ny, nx2, ny2 = num
+    return (x < nx2 + pad and x2 > nx - pad
+            and y < ny2 + pad and y2 > ny - pad)
+
+
 def check_render(files):
     soffice = None
     for cand in ('soffice', 'libreoffice'):
@@ -620,6 +658,9 @@ def check_render(files):
         return
 
     pptxs = [files[wk][1] for wk in WEEKS if files[wk][1]]
+    js_weeks = js_deck_sources()
+    js_stems = {files[wk][1].stem for wk in WEEKS
+                if files[wk][1] and wk in js_weeks}
     with tempfile.TemporaryDirectory() as tmp:
         proc = subprocess.run(
             [soffice, '--headless', '--convert-to', 'pdf', '--outdir', tmp]
@@ -649,10 +690,14 @@ def check_render(files):
                 pw, ph = float(pw), float(ph)
                 # pdftotext 的坐标按 PDF 点数给出，换算到 deck.py 的 720x540 版面
                 sy = 540.0 / ph
-                for x, y, x2, y2 in re.findall(
-                        r'<word xMin="([\d.]+)" yMin="([\d.]+)" '
-                        r'xMax="([\d.]+)" yMax="([\d.]+)"', body):
-                    x, y, x2, y2 = float(x), float(y), float(x2), float(y2)
+                words = [(float(x), float(y), float(x2), float(y2), t)
+                         for x, y, x2, y2, t in re.findall(
+                             r'<word xMin="([\d.]+)" yMin="([\d.]+)" '
+                             r'xMax="([\d.]+)" yMax="([\d.]+)">(.*?)</word>', body)]
+                is_js = pdf.stem in js_stems
+                nums = [w for w in words
+                        if is_page_number_word(w[4], w[0], w[1], pw, ph)]
+                for x, y, x2, y2, t in words:
                     if x2 > pw + 0.5 or y2 > ph + 0.5 or x < -0.5 or y < -0.5:
                         fail('8 渲染',
                              f'{pdf.name} 第 {pno} 页：文字越出页面 '
@@ -661,6 +706,16 @@ def check_render(files):
                     # ⚠️ 只比对页面边界是不够的：正文压到页脚上仍然在页内。
                     #    W16 曾有 3 页代码压住页脚而这里报"0 处越界"，
                     #    直到把判据改成**版心**底部才暴露。
+                    if is_js:
+                        hit = next((n for n in nums if n[:4] != (x, y, x2, y2)
+                                    and overlaps_page_number((x, y, x2, y2), n[:4])),
+                                   None)
+                        if hit:
+                            fail('8 渲染',
+                                 f'{pdf.name} 第 {pno} 页：正文「{t}」压住右下角页码 {hit[4]}'
+                                 f'（文字底 {y2 * sy:.1f}pt，页码顶 {hit[1] * sy:.1f}pt）')
+                            break
+                        continue
                     if intrudes_into_footer(y * sy, y2 * sy):
                         fail('8 渲染',
                              f'{pdf.name} 第 {pno} 页：正文越出版心底部并侵入页脚区'
@@ -700,7 +755,23 @@ def _strings(obj):
             yield from _strings(x)
 
 
-def exam_ladders(md_text, py_path):
+# JS 课件按页切块：每页是一个顶层 `{ ... }` 块，或一句 sectionSlide(...) / titleSlide(...)
+JS_SLIDE_SPLIT = re.compile(r'\n(?=\{\s*\n|sectionSlide\(|titleSlide\()')
+JS_CONTENT_CALL = re.compile(r'content\(([^\n]*)\)')
+JS_LADDER_TITLE = re.compile(r'难度梯度|难度台阶')
+
+
+def js_ladder_lines(js_text):
+    """JS 课件里标题（content() 的参数）带"难度梯度 / 难度台阶"的那几页，逐行产出。"""
+    for chunk in JS_SLIDE_SPLIT.split(js_text):
+        m = JS_CONTENT_CALL.search(chunk)
+        if m and JS_LADDER_TITLE.search(m.group(1)):
+            for ln in chunk.splitlines():
+                if not ln.lstrip().startswith('//'):
+                    yield ln
+
+
+def exam_ladders(md_text, py_path, js_path=None):
     """逐行产出讲义与课件里的难度梯度表：(是讲义吗, 行)。
 
     ⚠️ 课件侧**不能只认 `ascii` 那一种**：T-017 把梯度表改成了 `table`，
@@ -716,11 +787,17 @@ def exam_ladders(md_text, py_path):
             if is_ladder or '难度梯度' in text:
                 for ln in text.splitlines():
                     yield False, ln
+    if js_path is not None:
+        for ln in js_ladder_lines(read(js_path)):
+            yield False, ln
 
 
 def check_exam_spec(files):
+    # ⚠️ 第 03–16 周课件侧的源是 JS，不是只剩 META 的 content/wNN.py。
+    #    以前只查 py，W14 课件里的「112 分钟 6 题」改成「2 小时」也不会报。
+    js = js_deck_sources()
     for wk, (md, _pptx, py) in sorted(files.items()):
-        for path in (md, py):
+        for path in (md, py, js.get(wk)):
             if path is None:
                 continue
             for m in STALE_DURATION.finditer(read(path)):
@@ -755,14 +832,15 @@ def check_exam_spec(files):
         if SCORE_ALLOCATION.search(text):
             fail('9 机考规格',
                  f'{md.name}: {label}不应出现「分值分配」；固定分值另有核算办法')
-        if py is not None and f'{EXAM_MINUTES} 分钟' not in read(py):
+        deck_src = js.get(wk) or py
+        if deck_src is not None and f'{EXAM_MINUTES} 分钟' not in read(deck_src):
             fail('9 机考规格',
-                 f'{py.name}: 课件没有写明「{EXAM_MINUTES} 分钟」')
+                 f'{deck_src.name}: 课件没有写明「{EXAM_MINUTES} 分钟」')
 
-        for is_md, ln in exam_ladders(text, py):
+        for is_md, ln in exam_ladders(text, py, js.get(wk)):
             if LADDER_SCORE.search(ln):
                 fail('9 机考规格',
-                     f'{(md if is_md else py).name}: {label}的难度梯度里出现分数'
+                     f'{(md if is_md else deck_src).name}: {label}的难度梯度里出现分数'
                      f'{ln.strip()!r}；固定分值另有核算办法，'
                      f'机考成绩另有核算办法')
 
@@ -795,6 +873,16 @@ def deck_slides(py_path):
                     except ValueError:
                         return None
     return None
+
+
+def _text_frames(slide):
+    for shape in slide.shapes:
+        if shape.has_text_frame:
+            yield shape.text_frame
+        if getattr(shape, 'has_table', False) and shape.has_table:
+            for row in shape.table.rows:
+                for cell in row.cells:
+                    yield cell.text_frame
 
 
 def check_markup(files):
@@ -838,6 +926,16 @@ def check_markup(files):
         if pptx is None:
             continue
         for n, slide in enumerate(Presentation(str(pptx)).slides, 1):
+            # A 层只看得到 deck.py 的源（W01–02）；JS 课件的伪造续行只能在产物里抓：
+            # 非等宽段落以空白（含全角空格）开头，就是一个空项目符号 / 错位的单元格。
+            for tf in _text_frames(slide):
+                for para in tf.paragraphs:
+                    runs = [r for r in para.runs if r.text]
+                    if (runs and runs[0].font.name != MONO_FONT_NAME
+                            and LEADING_BLANK.search(para.text) and para.text.strip()):
+                        fail('10 版面标记',
+                             f'{pptx.name} 第 {n} 页：段落以空白开头 {para.text[:24]!r}'
+                             f' —— 伪造的续行会渲成空项目符号 / 错位，请拆成完整的两段')
             for shape in slide.shapes:
                 frames = []
                 if shape.has_text_frame:
@@ -908,6 +1006,36 @@ def _wide_count(text):
     return sum(1 for c in text if unicodedata.east_asian_width(c) in 'WF')
 
 
+def _misaligned(lines, need_space_before=False):
+    """各"显示列"上同一记号跨过的中文字数差的最大值；0 表示没有跨中文的对齐列。
+
+    need_space_before：代码里 `c10++`、`10+5` 这类记号会碰巧落在同一列，
+    并不是在对齐。真正"补空格对齐"的列，记号前面一定是空白 —— 代码框只认这种。
+    """
+    cols = {}
+    for line in lines:
+        for tok in ALIGN_TOKENS:
+            for m in re.finditer(re.escape(tok), line):
+                if m.start() == 0:
+                    continue          # 行首，前缀是空的，天然对齐
+                prefix = line[:m.start()]
+                if need_space_before and not prefix[-1].isspace():
+                    continue
+                cols.setdefault((tok, _display_width(prefix)), set()).add(
+                    _wide_count(prefix))
+    return max((max(v) - min(v) for v in cols.values() if len(v) > 1), default=0)
+
+
+def _mono_blocks(slide):
+    """一页里所有"整段都是等宽字体"的多行文本框，按行产出 list[str]。"""
+    for tf in _text_frames(slide):
+        runs = [r for p in tf.paragraphs for r in p.runs if r.text.strip()]
+        if runs and all(r.font.name == MONO_FONT_NAME for r in runs):
+            lines = [''.join(r.text for r in p.runs) for p in tf.paragraphs]
+            if len(lines) > 1:
+                yield lines
+
+
 def check_alignment(files):
     checked = ragged = 0
     for wk, (_md, _pptx, py) in sorted(files.items()):
@@ -920,17 +1048,7 @@ def check_alignment(files):
             if slide[0] != 'ascii' or len(slide) < 3:
                 continue
             checked += 1
-            cols = {}
-            for line in str(slide[2]).splitlines():
-                for tok in ALIGN_TOKENS:
-                    for m in re.finditer(re.escape(tok), line):
-                        if m.start() == 0:
-                            continue          # 行首，前缀是空的，天然对齐
-                        prefix = line[:m.start()]
-                        cols.setdefault((tok, _display_width(prefix)), set()).add(
-                            _wide_count(prefix))
-            worst = max((max(v) - min(v) for v in cols.values() if len(v) > 1),
-                        default=0)
+            worst = _misaligned(str(slide[2]).splitlines())
             if not worst:
                 continue
             if (py.stem, str(slide[1])) in KNOWN_RAGGED:
@@ -941,7 +1059,37 @@ def check_alignment(files):
                  f'跨过了不同的中文字数（最多相差 {worst} 个汉字），'
                  f'真实渲染必然对不齐。改用表格，或把要对齐的那一列'
                  f'挪到中文**前面**（前缀只剩 ASCII 就能对准）')
-    note(f'列对齐：{checked} 张等宽图，'
+    # --- 产物侧：所有课件里的多行等宽框（代码、ascii 图、控制台输出）。
+    #     W03–16 的源是 JS、SLIDES 为空，上面那段对它们一张图都看不到；
+    #     W01–02 的 `code` 页也不在上面的检查范围里。
+    #     deck.py 的 ascii 页在两边都会被看到，挂账名单两边共用（按页面上的标题文字匹配）。
+    try:
+        from pptx import Presentation
+    except ImportError:
+        note('⚠️ 未安装 python-pptx，第 11 项**只查了 deck.py 的 ascii 源**；'
+             '课件里的代码框 / JS 课件本次未验')
+        note(f'列对齐：{checked} 张等宽图，'
+             f'{ragged} 张为 T-018 挂账的历史遗留，其余无跨中文的对齐列')
+        return
+    boxes = 0
+    for wk, (_md, pptx, _py) in sorted(files.items()):
+        if pptx is None:
+            continue
+        mod = f'w{wk}'
+        for n, slide in enumerate(Presentation(str(pptx)).slides, 1):
+            texts = {tf.text.strip() for tf in _text_frames(slide)}
+            for lines in _mono_blocks(slide):
+                boxes += 1
+                worst = _misaligned(lines, need_space_before=True)
+                if not worst:
+                    continue
+                if any((mod, t) in KNOWN_RAGGED for t in texts):
+                    continue
+                fail('11 列对齐',
+                     f'{pptx.name} 第 {n} 页：等宽框里有一列补空格对齐、'
+                     f'却跨过了不同的中文字数（最多相差 {worst} 个汉字），'
+                     f'真实渲染对不齐。把注释挪到单独一行，或让对齐列前面只剩 ASCII')
+    note(f'列对齐：{checked} 张 deck.py 等宽图 + 课件里 {boxes} 个多行等宽框，'
          f'{ragged} 张为 T-018 挂账的历史遗留，其余无跨中文的对齐列')
 
 
