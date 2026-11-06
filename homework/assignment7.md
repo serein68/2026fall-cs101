@@ -1,7 +1,7 @@
 ## Assignment #7: 矩阵、贪心
 
 *Updated: 2026-10-19 (GMT+8)*  
-*完成学生：<mark>同学的姓名、院系</mark>*
+*完成学生：<mark>李佳颖、药学院</mark>*
 
 
 
