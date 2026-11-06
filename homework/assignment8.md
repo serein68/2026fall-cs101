@@ -1,7 +1,7 @@
 ## Assignment #8: 递归
 
 *Updated: 2026-10-27 (GMT+8)*  
-*完成学生：<mark>同学的姓名、院系</mark>*
+*完成学生：<mark>李佳颖、药学院</mark>*
 
 
 
